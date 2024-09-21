@@ -19,3 +19,5 @@ You can find test images in the 'test_images' folder.
 ```bash
 docker stop $(docker ps -a -q --filter ancestor=mnist-api --format="{{.ID}}")
 ```
+Main branch deploy directly to https://mnist.devgains.com
+```
