@@ -23,7 +23,6 @@ variables:
   #DOCKER_DRIVER: overlay2
 
 before_script:
-#- unset DOCKER_HOST
   - docker info
   - docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD  "https://$DOCKER_REGISTRY"
   - 'command -v ssh-agent >/dev/null || ( apk add --update openssh )' 
