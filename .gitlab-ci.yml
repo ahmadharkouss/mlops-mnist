@@ -1,0 +1,58 @@
+default:
+  image: docker:24.0.5
+  services:
+    - name: registry.hub.docker.com/library/docker:24.0.5-dind
+      alias: docker
+
+variables:
+  # When you use the dind service, you must instruct Docker to talk with
+  # the daemon started inside of the service. The daemon is available
+  # with a network connection instead of the default
+  # /var/run/docker.sock socket. Docker 19.03 does this automatically
+  # by setting the DOCKER_HOST in
+  # https://github.com/docker-library/docker/blob/d45051476babc297257df490d22cbd806f1b11e4/19.03/docker-entrypoint.sh#L23-L29
+  #
+  # The 'docker' hostname is the alias of the service container as described at
+  # https://docs.gitlab.com/ee/ci/services/#accessing-the-services.
+  #
+  # Specify to Docker where to create the certificates. Docker
+  # creates them automatically on boot, and creates
+  # `/certs/client` to share between the service and job
+  # container, thanks to volume mount from config.toml
+  DOCKER_TLS_CERTDIR: "/certs"
+  #DOCKER_DRIVER: overlay2
+
+before_script:
+#- unset DOCKER_HOST
+  - docker info
+  - docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD  "https://$DOCKER_REGISTRY"
+  - 'command -v ssh-agent >/dev/null || ( apk add --update openssh )' 
+  - eval $(ssh-agent -s)
+  - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+  - mkdir -p ~/.ssh
+  - chmod 700 ~/.ssh
+  - touch ~/.ssh/known_hosts
+  - chmod 644 ~/.ssh/known_hosts
+  - ssh-keyscan -p $SSH_PORT $SSH_HOST >> ~/.ssh/known_hosts
+
+
+stages:
+  - build-push
+  - deploy
+
+build-push-image:
+  stage: build-push
+  script:
+    - docker build -t "${DOCKER_REGISTRY}/mnist:${CI_COMMIT_SHA}" .
+    - docker push "${DOCKER_REGISTRY}/mnist:${CI_COMMIT_SHA}"
+
+deploy:
+  stage: deploy
+  script:
+    - ssh -p $SSH_PORT $SSH_USER@$SSH_HOST "docker pull ${DOCKER_REGISTRY}/mnist:${CI_COMMIT_SHA}"
+    - ssh -p $SSH_PORT $SSH_USER@$SSH_HOST "docker stop mnist || true"
+    - ssh -p $SSH_PORT $SSH_USER@$SSH_HOST "docker rm mnist || true"
+    - ssh -p $SSH_PORT $SSH_USER@$SSH_HOST "docker run -d --name mnist -p 7000:7000  ${DOCKER_REGISTRY}/mnist:${CI_COMMIT_SHA}"
+
+  only:
+    - main
