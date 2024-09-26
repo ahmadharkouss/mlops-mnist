@@ -1,0 +1,44 @@
+global:
+  scrape_interval: 30s
+
+rule_files:
+  - alert_rules.yml
+
+alerting:
+  alertmanagers:
+    - scheme: http
+      static_configs:
+        - targets: [ 'alertmanager:9093' ]
+
+scrape_configs:
+  - job_name: 'prometheus'
+    scrape_interval: 1m
+    static_configs:
+      - targets: ['localhost:9090'] #localhost = prometheus container not host machine
+
+  - job_name: 'system-metrics'
+    static_configs:
+      - targets: ['node-exporter:9200']
+
+  - job_name: 'mnist_api_node'
+    static_configs:
+      - targets: ['mnist-api:7000']
+
+  - job_name: 'blackbox'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]  # Look for a HTTP 200 response.
+    static_configs:
+      - targets:
+        #- http://prometheus.io    # Target to probe with http.
+        #- https://prometheus.io   # Target to probe with https.
+        - https://devgains.com
+        - https://mnist.devgains.com
+        - https://mnist.devgains.com/docs
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox:9115  # The blackbox exporter's real hostname:port.

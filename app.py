@@ -7,6 +7,7 @@ import io
 import torch
 import torchvision.transforms as transforms
 import torch.nn as nn
+from prometheus_fastapi_instrumentator import Instrumentator
 
 # Define the CNN model architecture (same as the one used during training)
 IN_CHANNELS = 1
@@ -49,6 +50,10 @@ class CNN(nn.Module):
 
 # Initialize FastAPI app
 app = FastAPI()
+
+
+# Initialize the Instrumentator
+instrumentator = Instrumentator()
 
 # Load the model and state_dict
 MODEL_PATH = "best_model.pth"
@@ -101,3 +106,6 @@ async def predict(file: UploadFile = File(...), api_key: str = Depends(get_api_k
         _, predicted = torch.max(outputs.data, 1)
 
     return {"predicted_digit": predicted.item()}
+
+# Register the metrics endpoint with Instrumentator
+instrumentator.instrument(app).expose(app, include_in_schema=False)
