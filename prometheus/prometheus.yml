@@ -16,9 +16,9 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:9090'] #localhost = prometheus container not host machine
 
-  - job_name: 'system-metrics'
-    static_configs:
-      - targets: ['node-exporter:9200']
+# - job_name: 'system-metrics'
+#    static_configs:
+ #     - targets: ['node-exporter:9200']
 
   - job_name: 'mnist_api_node'
     static_configs:

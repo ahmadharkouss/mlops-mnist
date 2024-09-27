@@ -6,3 +6,8 @@ efficientnet-pytorch==0.7.1
 pillow==10.4.0
 python-multipart==0.0.9
 prometheus-fastapi-instrumentator
+opentelemetry-sdk
+opentelemetry-instrumentation-fastapi 
+opentelemetry-exporter-otlp
+opentelemetry-instrumentation-logging
+opentelemetry-instrumentation-requests

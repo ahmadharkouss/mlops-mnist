@@ -9,6 +9,25 @@ import torchvision.transforms as transforms
 import torch.nn as nn
 from prometheus_fastapi_instrumentator import Instrumentator
 
+
+from opentelemetry import trace
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from opentelemetry.instrumentation.logging import LoggingInstrumentor
+from opentelemetry.instrumentation.requests import RequestsInstrumentor
+
+import logging
+
+# Set up basic logging configuration
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+logging.getLogger('opentelemetry.sdk.trace').setLevel(logging.DEBUG)
+
+
+
 # Define the CNN model architecture (same as the one used during training)
 IN_CHANNELS = 1
 FILTERS = 32
@@ -48,13 +67,6 @@ class CNN(nn.Module):
         x = self.fc2(x)
         return x
 
-# Initialize FastAPI app
-app = FastAPI()
-
-
-# Initialize the Instrumentator
-instrumentator = Instrumentator()
-
 # Load the model and state_dict
 MODEL_PATH = "best_model.pth"
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -92,20 +104,55 @@ async def get_api_key(api_key: str = Depends(api_key_header)):
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Could not validate API key",
         )
+    
+
+# Initialize FastAPI app
+app = FastAPI()
+# Initialize the Prometheus Instrumentator
+instrumentator = Instrumentator()
+# Register the metrics endpoint with Prometheus Instrumentator
+instrumentator.instrument(app).expose(app, include_in_schema=False)
+
+
+# Set up OpenTelemetry tracing
+resource = Resource.create(attributes={"service.name": "fastapi-ml-service"})
+trace.set_tracer_provider(TracerProvider(resource=resource))
+tracer_provider = trace.get_tracer_provider()
+
+# Configure the OTLP exporter for sending trace data to the OpenTelemetry Collector
+otlp_exporter = OTLPSpanExporter(
+    endpoint="http://otel-collector:4321", 
+    insecure=True
+)
+span_processor = SimpleSpanProcessor(otlp_exporter)
+tracer_provider.add_span_processor(span_processor)
+
+# Instrument the FastAPI app with OpenTelemetry for automatic tracing
+FastAPIInstrumentor.instrument_app(app)
+
+# Instrument other libraries like logging and requests
+LoggingInstrumentor().instrument()
+RequestsInstrumentor().instrument()
+
+
 
 @app.post("/predict/")
 async def predict(file: UploadFile = File(...), api_key: str = Depends(get_api_key)):
-    # Read the image file uploaded by the client
-    image_bytes = await file.read()
-    image_tensor = process_image(image_bytes)  # Process the image for inference
-
-    # Perform inference using the trained model
-    image_tensor = image_tensor.to(device)
-    with torch.no_grad():
-        outputs = model(image_tensor)
-        _, predicted = torch.max(outputs.data, 1)
-
-    return {"predicted_digit": predicted.item()}
-
-# Register the metrics endpoint with Instrumentator
-instrumentator.instrument(app).expose(app, include_in_schema=False)
+    # Log the API call
+    logger.info("Prediction API called")
+    
+    try:
+        # Read the image file uploaded by the client
+        image_bytes = await file.read()
+        image_tensor = process_image(image_bytes)  # Process the image for inference
+        
+        # Perform inference using the trained model
+        image_tensor = image_tensor.to(device)
+        with torch.no_grad():
+            outputs = model(image_tensor)
+            _, predicted = torch.max(outputs.data, 1)
+        logger.info(f"Predicted digit: {predicted.item()}")  # Log the prediction
+        return {"predicted_digit": predicted.item()}
+    except Exception as e:
+        logger.error(f"Error during prediction: {str(e)}")
+        raise HTTPException(status_code=500, detail="Prediction failed")
