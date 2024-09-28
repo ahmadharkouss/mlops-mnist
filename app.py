@@ -1,31 +1,55 @@
+#open-telemetry docs for fast api https://opentelemetry-python-contrib.readthedocs.io/en/latest/instrumentation/fastapi/fastapi.html
 import os
+import io
+
 
 from fastapi import FastAPI, File, UploadFile, Depends, HTTPException, status
 from fastapi.security.api_key import APIKeyHeader
 from PIL import Image
-import io
 import torch
 import torchvision.transforms as transforms
 import torch.nn as nn
 from prometheus_fastapi_instrumentator import Instrumentator
-
-
 from opentelemetry import trace
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
+
+
+
+'''
 from opentelemetry.instrumentation.logging import LoggingInstrumentor
 from opentelemetry.instrumentation.requests import RequestsInstrumentor
+from opentelemetry._logs import set_logger_provider
+from opentelemetry.exporter.otlp.proto.grpc._log_exporter import (
+    OTLPLogExporter,
+)
+import logging
+from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
+from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import (
+    BatchSpanProcessor,
+    ConsoleSpanExporter,
+)
+'''
+
 
 import logging
+from logging.handlers import RotatingFileHandler
 
-# Set up basic logging configuration
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-logging.getLogger('opentelemetry.sdk.trace').setLevel(logging.DEBUG)
-
+# Application Logger Setup
+app_log_handler = RotatingFileHandler('./logs/app.log', maxBytes=10000, backupCount=3)
+app_log_handler.setLevel(logging.INFO)
+app_log_handler.setFormatter(logging.Formatter(
+    'time="%(asctime)s" logger="%(name)s" level="%(levelname)s" message="%(message)s"'
+))
+app_logger = logging.getLogger('myapp')
+app_logger.setLevel(logging.INFO)
+app_logger.addHandler(app_log_handler)
 
 
 # Define the CNN model architecture (same as the one used during training)
@@ -104,7 +128,6 @@ async def get_api_key(api_key: str = Depends(api_key_header)):
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Could not validate API key",
         )
-    
 
 # Initialize FastAPI app
 app = FastAPI()
@@ -114,7 +137,9 @@ instrumentator = Instrumentator()
 instrumentator.instrument(app).expose(app, include_in_schema=False)
 
 
+
 # Set up OpenTelemetry tracing
+# Create a resource with the service name
 resource = Resource.create(attributes={"service.name": "fastapi-ml-service"})
 trace.set_tracer_provider(TracerProvider(resource=resource))
 tracer_provider = trace.get_tracer_provider()
@@ -127,19 +152,53 @@ otlp_exporter = OTLPSpanExporter(
 span_processor = SimpleSpanProcessor(otlp_exporter)
 tracer_provider.add_span_processor(span_processor)
 
+
+#Set up OpenTelemetry logging
+'''
+logger_provider = LoggerProvider(
+    resource=Resource.create(
+        {
+            "service.name": "fast-api-log-service",
+        }
+    ),
+)
+set_logger_provider(logger_provider)
+
+# Set up the LoggerProvider with the OTLP log exporter
+log_exporter = OTLPLogExporter(
+    endpoint="http://otel-collector:4321",  # Make sure your OpenTelemetry Collector is running and accessible
+    insecure=True
+)
+
+logger_provider.add_log_record_processor(BatchLogRecordProcessor(log_exporter))
+handler = LoggingHandler(level=logging.NOTSET, logger_provider=logger_provider)
+
+# Attach OTLP handler to root logger
+logging.getLogger().addHandler(handler)
+
+# Create different namespaced loggers
+# It is recommended to not use the root logger with OTLP handler
+# so telemetry is collected only for the application
+logger1 = logging.getLogger("myapp.area1")
+logger2 = logging.getLogger("myapp.area2")
+'''
+
+
 # Instrument the FastAPI app with OpenTelemetry for automatic tracing
 FastAPIInstrumentor.instrument_app(app)
 
 # Instrument other libraries like logging and requests
+
+'''
 LoggingInstrumentor().instrument()
 RequestsInstrumentor().instrument()
-
-
+'''
 
 @app.post("/predict/")
 async def predict(file: UploadFile = File(...), api_key: str = Depends(get_api_key)):
-    # Log the API call
-    logger.info("Prediction API called")
+    # Use OpenTelemetry logger
+    #logger1.info("Prediction API called")  # This will be sent to OpenTelemetry collector
+    app_logger.info("Prediction API called")
     
     try:
         # Read the image file uploaded by the client
@@ -151,8 +210,11 @@ async def predict(file: UploadFile = File(...), api_key: str = Depends(get_api_k
         with torch.no_grad():
             outputs = model(image_tensor)
             _, predicted = torch.max(outputs.data, 1)
-        logger.info(f"Predicted digit: {predicted.item()}")  # Log the prediction
+        app_logger.info(f"Predicted digit: {predicted.item()}")
+        
+        #logger1.info(f"Predicted digit: {predicted.item()}")  # Log the prediction with OpenTelemetry
         return {"predicted_digit": predicted.item()}
     except Exception as e:
-        logger.error(f"Error during prediction: {str(e)}")
+        app_logger.error(f"Error during prediction: {str(e)}")
+        #logger1.error(f"Error during prediction: {str(e)}")
         raise HTTPException(status_code=500, detail="Prediction failed")
