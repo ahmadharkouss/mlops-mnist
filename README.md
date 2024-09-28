@@ -1,6 +1,6 @@
 # MNIST API: FastAPI-based MNIST Classifier
 
-This repository contains a FastAPI-based implementation of a MNIST classifier. The CNN imported model from `best_model.pth` file is built with pytorch and trained on the MNIST dataset . The API accepts a POST request with an image and returns the predicted digit.
+This repository contains a FastAPI-based implementation of a MNIST classifier. The CNN imported model from `best_model.pth` file is built with pytorch and trained on a MNIST dataset . The API accepts a POST request with an image and returns the predicted digit.
 
 The project also includes a monitoring stack using **Prometheus**, **Grafana**, **Alertmanager**, and **OpenTelemetry** to provide insights into application performance.
 
