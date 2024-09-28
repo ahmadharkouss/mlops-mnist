@@ -25,7 +25,7 @@ The project also includes a monitoring stack using **Prometheus**, **Grafana**, 
 The main branch deploys the app's Docker image directly to [Devgains Docker Registry](https://registry.devgains.com) and updates the production URL at [mnist.devgains.com](https://mnist.devgains.com).
 
 ## Infrastructure Diagram
-![Infrastructure Diagram](./infra.png)
+![Infrastructure Diagram](infra.png)
 
 ## Local Deployment Instructions
 
