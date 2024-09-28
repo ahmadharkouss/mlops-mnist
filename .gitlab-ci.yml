@@ -48,11 +48,11 @@ build-push-image:
 deploy:
   stage: deploy
   script:
-    - ssh -p $SSH_PORT $SSH_USER@$SSH_HOST "cd ${APP_DIRECTORY}"
+    - ssh -p $SSH_PORT $SSH_USER@$SSH_HOST "cd /opt/mlops-project/"
     - ssh -p $SSH_PORT $SSH_USER@$SSH_HOST "docker pull ${DOCKER_REGISTRY}/mnist-api:${CI_COMMIT_SHA}"
     - ssh -p $SSH_PORT $SSH_USER@$SSH_HOST "docker stop mnist-api || true"
     - ssh -p $SSH_PORT $SSH_USER@$SSH_HOST "docker rm mnist-api || true"
-    - ssh -p $SSH_PORT $SSH_USER@$SSH_HOST "docker run -d --name mnist-api --network monitoring --network-alias=mnist-api  -v $(pwd)/logs:/app/logs  -p 7000:7000 ${DOCKER_REGISTRY}/mnist-api:${CI_COMMIT_SHA}"
+    - ssh -p $SSH_PORT $SSH_USER@$SSH_HOST "docker run -d --name mnist-api --network monitoring --network-alias=mnist-api  -v ${APP_DIRECTORY}/logs:/app/logs  -p 7000:7000 ${DOCKER_REGISTRY}/mnist-api:${CI_COMMIT_SHA}"
 
   only:
     - main
