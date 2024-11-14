@@ -78,7 +78,7 @@ docker compose down
 - **Prometheus**: [https://prometheus.devgains.com](https://prometheus.devgains.com) (Username: admin, Password: Devgains@2016)
 - **Grafana**: [https://grafana.devgains.com](https://grafana.devgains.com) (Username: admin, Password: Devgains@2016)
 - **Alertmanager**: [https://alertmanager.devgains.com](https://alertmanager.devgains.com) (Username: admin, Password: Devgains@2016)
-- **Portainer**: [https://portainer.devgains.com](https://portainer.devgains.com) (Username: admin, Password: Devgains@2016) - For managing Docker containers.
+- **Portainer**: [https://portainer.devgains.com](https://portainer.devgains.com) - For managing Docker containers.
 
 ## API Authentication
 The API requires a bearer token for authentication. The token is : `ABDELHAMEMELOPSE`
