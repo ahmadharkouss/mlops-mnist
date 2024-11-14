@@ -75,7 +75,7 @@ docker compose down
 
 ## Monitoring Tools Access (Production)
 
-- **Prometheus**: [https://prometheus.devgains.com](https://prometheus.mnist.devgains.com) (Username: admin, Password: Devgains@2016)
+- **Prometheus**: [https://prometheus.devgains.com](https://prometheus.devgains.com) (Username: admin, Password: Devgains@2016)
 - **Grafana**: [https://grafana.devgains.com](https://grafana.devgains.com) (Username: admin, Password: Devgains@2016)
 - **Alertmanager**: [https://alertmanager.devgains.com](https://alertmanager.devgains.com) (Username: admin, Password: Devgains@2016)
 - **Portainer**: [https://portainer.devgains.com](https://portainer.devgains.com) (Username: admin, Password: Devgains@2016) - For managing Docker containers.
